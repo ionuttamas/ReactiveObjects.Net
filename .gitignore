@@ -1,1 +1,8 @@
 ReactiveObjects/ReactiveObjects/obj/*
+ReactiveObjects/.vs/
+ReactiveObjects/packages/NUnit.2.6.4/license.txt
+ReactiveObjects/packages/
+ReactiveObjects/ReactiveObjects.UnitTests/obj/Debug/ReactiveObjects.UnitTests.pdb
+ReactiveObjects/ReactiveObjects.UnitTests/obj/
+ReactiveObjects/ReactiveObjects/bin/
+ReactiveObjects/ReactiveObjects.UnitTests/bin/
