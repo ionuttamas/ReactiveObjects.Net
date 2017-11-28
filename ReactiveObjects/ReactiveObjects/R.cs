@@ -102,8 +102,57 @@ namespace ReactiveObjects
                 ReactiveInstances = parameters.Values.Select(x=>(IReactive)x).ToList();
             }
 
-            protected override Expression VisitBinary(BinaryExpression b) {
-                return base.VisitBinary(b);
+            protected override Expression VisitBinary(BinaryExpression node)
+            {
+                Expression leftConvertedExpression = node.Left;
+                Expression rightConvertedExpression = node.Right;
+
+                if (node.Left.NodeType == ExpressionType.Convert && node.Left is UnaryExpression)
+                {
+                    var leftExpression = (UnaryExpression)node.Left;
+
+                    if (!(leftExpression.Operand is MemberExpression))
+                        return base.VisitBinary(node);
+
+                    var operandExpression = (MemberExpression) leftExpression.Operand;
+
+                    if(operandExpression.Type.Name!= typeof(R<>).Name)
+                        return base.VisitBinary(node);
+
+                    //var memberExpression = (MemberExpression)operandExpression.Expression;
+                    var closureExpression = (ConstantExpression)operandExpression.Expression;
+                    var memberType = ((FieldInfo)operandExpression.Member).FieldType;
+                    var capturedVariable = ((FieldInfo)operandExpression.Member).GetValue(closureExpression.Value);
+                    string variableName = operandExpression.Member.Name;
+                    var genericType = memberType.GenericTypeArguments[0];
+                    ParameterExpression paramExpression = Expression.Parameter(genericType, variableName);
+                    parameters[paramExpression] = capturedVariable;
+                    leftConvertedExpression = paramExpression;
+                }
+
+                if (node.Right.NodeType == ExpressionType.Convert && node.Right is UnaryExpression) {
+                    var rightExpression = (UnaryExpression)node.Right;
+
+                    if (!(rightExpression.Operand is MemberExpression))
+                        return base.VisitBinary(node);
+
+                    var operandExpression = (MemberExpression)rightExpression.Operand;
+
+                    if (operandExpression.Type.Name != typeof(R<>).Name)
+                        return base.VisitBinary(node);
+
+                    //var memberExpression = (MemberExpression)operandExpression.Expression;
+                    var closureExpression = (ConstantExpression)operandExpression.Expression;
+                    var memberType = ((FieldInfo)operandExpression.Member).FieldType;
+                    var capturedVariable = ((FieldInfo)operandExpression.Member).GetValue(closureExpression.Value);
+                    string variableName = operandExpression.Member.Name;
+                    var genericType = memberType.GenericTypeArguments[0];
+                    ParameterExpression paramExpression = Expression.Parameter(genericType, variableName);
+                    parameters[paramExpression] = capturedVariable;
+                    rightConvertedExpression = paramExpression;
+                }
+
+                return Expression.MakeBinary(node.NodeType, leftConvertedExpression, rightConvertedExpression);
             }
 
             protected override Expression VisitMember(MemberExpression node) {
@@ -128,6 +177,7 @@ namespace ReactiveObjects
 
                 return base.VisitMember(node);
             }
+
 
             private Type GetFuncType(Type returnType) {
                 Type delegateType = null;
