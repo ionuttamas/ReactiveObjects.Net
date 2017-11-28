@@ -6,12 +6,12 @@ using System.Reflection;
 
 namespace ReactiveObjects
 {
-    public class R<T> : IReactive
-    {
+    public class R<T> : ReactiveBase {
         private readonly Delegate computeFunc;
-        private readonly List<IReactive> children;
+        private readonly List<ReactiveBase> children;
+        private readonly IUpdateStrategy updateStrategy;
 
-        private R(Delegate computeFunc, List<IReactive> children)
+        private R(Delegate computeFunc, List<ReactiveBase> children)
         {
             this.computeFunc = computeFunc;
             this.children = children;
@@ -20,12 +20,15 @@ namespace ReactiveObjects
 
         public R(T value) {
             Value = value;
-            ValueObjectChanged?.Invoke(this, value);
+            OnValueObjectChanged(value);
             ValueChanged?.Invoke(this, value);
         }
 
-        public event EventHandler<T> ValueChanged;
         public T Value { get; private set; }
+
+        internal override object ValueObject => Value;
+
+        public event EventHandler<T> ValueChanged;
 
         public static implicit operator T(R<T> instance) {
             return instance.Value;
@@ -45,8 +48,15 @@ namespace ReactiveObjects
 
         public void Set(T value) {
             Value = value;
-            ValueObjectChanged?.Invoke(this, value);
+            OnValueObjectChanged(value);
             ValueChanged?.Invoke(this, value);
+        }
+
+        public T Compute(object[] values)
+        {
+            var value = (T) computeFunc.DynamicInvoke(values);
+
+            return value;
         }
 
         public override bool Equals(object obj)
@@ -61,7 +71,7 @@ namespace ReactiveObjects
 
         private void Configure()
         {
-            foreach (IReactive child in children)
+            foreach (ReactiveBase child in children)
             {
                 child.ValueObjectChanged += Child_ValueChanged;
             }
@@ -73,21 +83,14 @@ namespace ReactiveObjects
 
         private void Child_ValueChanged(object sender, object e)
         {
-            var newValue = (T)computeFunc.DynamicInvoke(children.Select(x => x.ValueObject).ToArray());
-
-            if (!Value.Equals(newValue))
-            {
-                Value = newValue;
-                ValueObjectChanged?.Invoke(this, newValue);
-                ValueChanged?.Invoke(this, newValue);
-            }
+            updateStrategy.Update(this, children.Select(x => x.ValueObject).ToArray());
         }
 
         private class ConvertModifier : ExpressionVisitor {
             private readonly Dictionary<ParameterExpression, object> parameters;
 
             public Delegate ComputeFunc { get; private set; }
-            public List<IReactive> ReactiveInstances { get; private set; }
+            public List<ReactiveBase> ReactiveInstances { get; private set; }
 
             public ConvertModifier() {
                 parameters = new Dictionary<ParameterExpression, object>();
@@ -99,7 +102,7 @@ namespace ReactiveObjects
                 var expressionType = GetFuncType(expressionReturnType);
                 var resultExpression = Expression.Lambda(expressionType, visitedExpression.Body, parameters.Keys);
                 ComputeFunc = resultExpression.Compile();
-                ReactiveInstances = parameters.Values.Select(x=>(IReactive)x).ToList();
+                ReactiveInstances = parameters.Values.Select(x=>(ReactiveBase)x).ToList();
             }
 
             protected override Expression VisitBinary(BinaryExpression node)
@@ -178,7 +181,6 @@ namespace ReactiveObjects
                 return base.VisitMember(node);
             }
 
-
             private Type GetFuncType(Type returnType) {
                 Type delegateType = null;
 
@@ -241,14 +243,16 @@ namespace ReactiveObjects
                 return funcType;
             }
         }
-
-        public object ValueObject => Value;
-        public event EventHandler<object> ValueObjectChanged;
     }
 
-    public interface IReactive
+    public class ReactiveBase
     {
-        object ValueObject { get; }
-        event EventHandler<object> ValueObjectChanged;
+        internal virtual object ValueObject { get; set; }
+        internal event EventHandler<object> ValueObjectChanged;
+
+        internal void OnValueObjectChanged(object value)
+        {
+            ValueObjectChanged?.Invoke(this, value);
+        }
     }
 }
