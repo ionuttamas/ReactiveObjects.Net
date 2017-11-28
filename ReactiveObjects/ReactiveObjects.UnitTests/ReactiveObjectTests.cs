@@ -14,17 +14,19 @@ namespace ReactiveObjects.UnitTests {
             R<string> a = "4";
             R<int> da = 4;
 
-            Expression<Func<int>> expression = () => a.Value.Length * 2 + 4;
+
+            R<int> sum = R.Of(() => a.Value.Length * 2 + 4);
+            Assert.AreEqual(6, sum.Value);
+            a.Set("43");
+            Assert.AreEqual(8, sum.Value);
 
             R<int> firstOperand = 2;
             R<int> secondOperand = 3;
-
-            R<int> sum = R.Of(() => a.Value.Length * 2 + 4);
             R<int> sumX = R.Of(() => firstOperand + secondOperand);
-            Assert.Equals(5, sum);
+            Assert.AreEqual(5, sumX.Value);
 
-            firstOperand = 4;
-            Assert.Equals(7, sum);
+            firstOperand.Set(4);
+            Assert.AreEqual(7, sumX.Value);
         }
     }
 }

@@ -6,20 +6,22 @@ using System.Reflection;
 
 namespace ReactiveObjects
 {
-    public class R<T>
+    public class R<T> : IReactive
     {
         private readonly Delegate computeFunc;
-        private readonly List<R<object>> children;
+        private readonly List<IReactive> children;
 
-        private R(Delegate computeFunc, List<R<object>> children)
+        private R(Delegate computeFunc, List<IReactive> children)
         {
             this.computeFunc = computeFunc;
             this.children = children;
-            ConfigureEventHandling();
+            Configure();
         }
 
         public R(T value) {
             Value = value;
+            ValueObjectChanged?.Invoke(this, value);
+            ValueChanged?.Invoke(this, value);
         }
 
         public event EventHandler<T> ValueChanged;
@@ -41,6 +43,12 @@ namespace ReactiveObjects
             return new R<T>(modifier.ComputeFunc, modifier.ReactiveInstances);
         }
 
+        public void Set(T value) {
+            Value = value;
+            ValueObjectChanged?.Invoke(this, value);
+            ValueChanged?.Invoke(this, value);
+        }
+
         public override bool Equals(object obj)
         {
             return Value.Equals(obj);
@@ -51,27 +59,38 @@ namespace ReactiveObjects
             return Value.GetHashCode();
         }
 
-        private void ConfigureEventHandling()
+        private void Configure()
         {
-            foreach (R<object> child in children)
+            foreach (IReactive child in children)
             {
-                child.ValueChanged += Child_ValueChanged;
+                child.ValueObjectChanged += Child_ValueChanged;
             }
+
+            var arguments = children.Select(x => x.ValueObject).ToArray();
+            var value = computeFunc.DynamicInvoke(arguments);
+            Value = (T)value;
         }
 
         private void Child_ValueChanged(object sender, object e)
         {
-            Value = (T)computeFunc.DynamicInvoke(children.Select(x => x.Value).ToArray());
+            var newValue = (T)computeFunc.DynamicInvoke(children.Select(x => x.ValueObject).ToArray());
+
+            if (!Value.Equals(newValue))
+            {
+                Value = newValue;
+                ValueObjectChanged?.Invoke(this, newValue);
+                ValueChanged?.Invoke(this, newValue);
+            }
         }
 
         private class ConvertModifier : ExpressionVisitor {
-            private readonly Dictionary<ParameterExpression, R<object>> parameters;
+            private readonly Dictionary<ParameterExpression, object> parameters;
 
             public Delegate ComputeFunc { get; private set; }
-            public List<R<object>> ReactiveInstances { get; private set; }
+            public List<IReactive> ReactiveInstances { get; private set; }
 
             public ConvertModifier() {
-                parameters = new Dictionary<ParameterExpression, R<object>>();
+                parameters = new Dictionary<ParameterExpression, object>();
             }
 
             public void Modify(Expression expression) {
@@ -80,7 +99,7 @@ namespace ReactiveObjects
                 var expressionType = GetFuncType(expressionReturnType);
                 var resultExpression = Expression.Lambda(expressionType, visitedExpression.Body, parameters.Keys);
                 ComputeFunc = resultExpression.Compile();
-                ReactiveInstances = parameters.Values.ToList();
+                ReactiveInstances = parameters.Values.Select(x=>(IReactive)x).ToList();
             }
 
             protected override Expression VisitBinary(BinaryExpression b) {
@@ -98,7 +117,7 @@ namespace ReactiveObjects
                     var memberExpression = (MemberExpression)valueExpression.Expression;
                     var closureExpression = (ConstantExpression)memberExpression.Expression;
                     var memberType = ((FieldInfo)memberExpression.Member).FieldType;
-                    R<object> capturedVariable = ((FieldInfo)memberExpression.Member).GetValue(closureExpression.Value);
+                    var capturedVariable = ((FieldInfo)memberExpression.Member).GetValue(closureExpression.Value);
                     string variableName = memberExpression.Member.Name;
                     ParameterExpression paramExpression = Expression.Parameter(memberType.GenericTypeArguments[0], variableName);
                     parameters[paramExpression] = capturedVariable;
@@ -172,5 +191,14 @@ namespace ReactiveObjects
                 return funcType;
             }
         }
+
+        public object ValueObject => Value;
+        public event EventHandler<object> ValueObjectChanged;
+    }
+
+    public interface IReactive
+    {
+        object ValueObject { get; }
+        event EventHandler<object> ValueObjectChanged;
     }
 }
