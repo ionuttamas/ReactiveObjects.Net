@@ -7,15 +7,15 @@ using System.Reflection;
 namespace ReactiveObjects
 {
     public class R<T> : ReactiveBase {
-        private readonly Delegate computeFunc;
-        private readonly List<ReactiveBase> children;
-        private readonly IUpdateStrategy updateStrategy;
+        private readonly Func<object[], T> computeFunc;
+        public List<ReactiveBase> Children { get; }
+        private readonly IUpdateStrategy<T> updateStrategy;
 
         private R(Delegate computeFunc, List<ReactiveBase> children)
         {
-            this.computeFunc = computeFunc;
-            this.children = children;
-            updateStrategy = new ImmediateUpdateStrategy();
+            this.computeFunc = (Func<object[], T>)computeFunc;
+            this.Children = children;
+            updateStrategy = new ImmediateUpdateStrategy<T>();
             Configure();
         }
 
@@ -23,7 +23,7 @@ namespace ReactiveObjects
             Value = value;
             OnValueObjectChanged(value);
             ValueChanged?.Invoke(this, value);
-            updateStrategy = new ImmediateUpdateStrategy();
+            updateStrategy = new ImmediateUpdateStrategy<T>();
         }
 
         public T Value { get; private set; }
@@ -56,7 +56,7 @@ namespace ReactiveObjects
 
         public T Compute(object[] values)
         {
-            var value = (T) computeFunc.DynamicInvoke(values);
+            var value = computeFunc(values);
 
             return value;
         }
@@ -73,19 +73,19 @@ namespace ReactiveObjects
 
         private void Configure()
         {
-            foreach (ReactiveBase child in children)
+            foreach (ReactiveBase child in Children)
             {
                 child.ValueObjectChanged += Child_ValueChanged;
             }
 
-            var arguments = children.Select(x => x.ValueObject).ToArray();
-            var value = computeFunc.DynamicInvoke(arguments);
-            Value = (T)value;
+            var arguments = Children.Select(x => x.ValueObject).ToArray();
+            var value = computeFunc(arguments);
+            Value = value;
         }
 
         private void Child_ValueChanged(object sender, object e)
         {
-            updateStrategy.Update(this, children.Select(x => x.ValueObject).ToArray());
+            updateStrategy.Update(this);
         }
 
         private class ConvertModifier : ExpressionVisitor {
@@ -105,6 +105,12 @@ namespace ReactiveObjects
                 var resultExpression = Expression.Lambda(expressionType, visitedExpression.Body, parameters.Keys);
                 ComputeFunc = resultExpression.Compile();
                 ReactiveInstances = parameters.Values.Select(x=>(ReactiveBase)x).ToList();
+
+                var computeBody = Expression.Lambda(Expression.Convert(resultExpression.Body, typeof(T)), resultExpression.Parameters);
+                var inputs = Expression.Parameter(typeof(object[]), "args");
+                var conversionExpression = resultExpression.Parameters.Select((v, i) => Expression.Convert(Expression.ArrayIndex(inputs, Expression.Constant(i)), v.Type)).ToArray();
+                var expressionWrapper = Expression.Lambda(Expression.Invoke(computeBody, conversionExpression), inputs);
+                ComputeFunc = (Func<object[], T>)expressionWrapper.Compile();
             }
 
             protected override Expression VisitBinary(BinaryExpression node)
@@ -235,17 +241,6 @@ namespace ReactiveObjects
 
                 return funcType;
             }
-        }
-    }
-
-    public class ReactiveBase
-    {
-        internal virtual object ValueObject { get; set; }
-        internal event EventHandler<object> ValueObjectChanged;
-
-        internal void OnValueObjectChanged(object value)
-        {
-            ValueObjectChanged?.Invoke(this, value);
         }
     }
 }

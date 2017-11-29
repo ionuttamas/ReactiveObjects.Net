@@ -19,10 +19,12 @@ namespace ReactiveObjects.UnitTests {
             R<int> result = R.Of(() => leftOperand + rightOperand);
             Assert.AreEqual(leftValue + rightValue, result.Value);
 
-            leftOperand.Set(2*leftValue);
+            leftValue = 2*leftValue;
+            leftOperand.Set(leftValue);
             Assert.AreEqual(leftValue + rightValue, result.Value);
 
-            rightOperand.Set(3*rightValue);
+            rightValue = 3*rightValue;
+            rightOperand.Set(rightValue);
             Assert.AreEqual(leftValue + rightValue, result.Value);
         }
 
@@ -37,10 +39,12 @@ namespace ReactiveObjects.UnitTests {
             R<int> result = R.Of(() => leftOperand * rightOperand);
             Assert.AreEqual(leftValue * rightValue, result.Value);
 
-            leftOperand.Set(2*leftValue);
+            leftValue = 2 * leftValue;
+            leftOperand.Set(leftValue);
             Assert.AreEqual(leftValue * rightValue, result.Value);
 
-            rightOperand.Set(3*rightValue);
+            rightValue = 3 * rightValue;
+            rightOperand.Set(rightValue);
             Assert.AreEqual(leftValue * rightValue, result.Value);
         }
 
@@ -54,11 +58,49 @@ namespace ReactiveObjects.UnitTests {
             R<int> result = R.Of(() => 2 * leftOperand.Value.Length * rightOperand + rightOperand * 3);
             Assert.AreEqual(2 * leftValue.Length * rightValue + rightValue * 3, result.Value);
 
-            leftOperand.Set(leftValue + leftValue);
+            leftValue += leftValue;
+            leftOperand.Set(leftValue);
             Assert.AreEqual(2 * leftValue.Length * rightValue + rightValue * 3, result.Value);
 
-            rightOperand.Set(3 * rightValue);
+            rightValue = 3 * rightValue;
+            rightOperand.Set(rightValue);
             Assert.AreEqual(2 * leftValue.Length * rightValue + rightValue * 3, result.Value);
+        }
+
+        [Test]
+        public void ReactiveObject_ForReactivePropertiesOperations_ComputesCorrectly() {
+            var person = new Person
+            {
+                Id = 0,
+                Age = 30,
+                Name = "John Doe",
+                Type = "VIP"
+            };
+
+            var invoice = new Invoice
+            {
+                Amount = R.Of(() => person.Type=="VIP" ? person.Age * 30 : person.Age*10)
+            };
+
+            Assert.AreEqual(person.Age * 30, invoice.Amount);
+
+            person.Age.Set(35);
+            Assert.AreEqual(person.Age * 30, invoice.Amount);
+
+            person.Type.Set("Regular");
+            Assert.AreEqual(person.Age * 10, invoice.Amount);
+        }
+
+        internal class Person
+        {
+            public int Id { get; set; }
+            public R<int> Age { get; set; }
+            public R<string> Name { get; set; }
+            public R<string> Type { get; set; }
+        }
+
+        internal class Invoice {
+            public R<int> Amount { get; set; }
         }
     }
 }
