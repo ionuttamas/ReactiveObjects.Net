@@ -19,12 +19,10 @@ namespace ReactiveObjects.UnitTests {
             R<int> result = R.Of(() => leftOperand + rightOperand);
             Assert.AreEqual(leftValue + rightValue, result.Value);
 
-            leftValue *= 2;
-            leftOperand.Set(leftValue);
+            leftOperand.Set(2*leftValue);
             Assert.AreEqual(leftValue + rightValue, result.Value);
 
-            rightValue *= 3;
-            rightOperand.Set(rightValue);
+            rightOperand.Set(3*rightValue);
             Assert.AreEqual(leftValue + rightValue, result.Value);
         }
 
@@ -39,18 +37,16 @@ namespace ReactiveObjects.UnitTests {
             R<int> result = R.Of(() => leftOperand * rightOperand);
             Assert.AreEqual(leftValue * rightValue, result.Value);
 
-            leftValue *= 2;
-            leftOperand.Set(leftValue);
+            leftOperand.Set(2*leftValue);
             Assert.AreEqual(leftValue * rightValue, result.Value);
 
-            rightValue *= 3;
-            rightOperand.Set(rightValue);
+            rightOperand.Set(3*rightValue);
             Assert.AreEqual(leftValue * rightValue, result.Value);
         }
 
         [TestCase("ab", 3)]
-        //[TestCase("xyz", 3)]
-        //[TestCase("xyz", 10)]
+        [TestCase("xyz", 3)]
+        [TestCase("xyz", 10)]
         public void ReactiveObject_ForArithmeticAndStringOperations_ComputesCorrectly(string leftValue, int rightValue) {
             R<string> leftOperand = leftValue;
             R<int> rightOperand = rightValue;
@@ -58,12 +54,10 @@ namespace ReactiveObjects.UnitTests {
             R<int> result = R.Of(() => 2 * leftOperand.Value.Length * rightOperand + rightOperand * 3);
             Assert.AreEqual(2 * leftValue.Length * rightValue + rightValue * 3, result.Value);
 
-            leftValue += leftValue;
-            leftOperand.Set(leftValue);
+            leftOperand.Set(leftValue + leftValue);
             Assert.AreEqual(2 * leftValue.Length * rightValue + rightValue * 3, result.Value);
 
-            rightValue *= 3;
-            rightOperand.Set(rightValue);
+            rightOperand.Set(3 * rightValue);
             Assert.AreEqual(2 * leftValue.Length * rightValue + rightValue * 3, result.Value);
         }
     }
