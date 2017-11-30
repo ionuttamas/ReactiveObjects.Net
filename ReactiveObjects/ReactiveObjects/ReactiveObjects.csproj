@@ -46,6 +46,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RBuilder.cs" />
     <Compile Include="ReactiveBase.cs" />
+    <Compile Include="ReflectionExtensions.cs" />
     <Compile Include="ThrottledUpdateStrategy.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

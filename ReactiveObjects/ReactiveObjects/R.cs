@@ -8,7 +8,6 @@ namespace ReactiveObjects
 {
     public class R<T> : ReactiveBase {
         private readonly Func<object[], T> computeFunc;
-        public List<ReactiveBase> Children { get; }
         private readonly IUpdateStrategy<T> updateStrategy;
 
         private R(Delegate computeFunc, List<ReactiveBase> children)
@@ -28,6 +27,8 @@ namespace ReactiveObjects
 
         public T Value { get; private set; }
 
+        public List<ReactiveBase> Children { get; }
+
         internal override object ValueObject => Value;
 
         public event EventHandler<T> ValueChanged;
@@ -45,7 +46,7 @@ namespace ReactiveObjects
             var modifier = new ConvertModifier();
             modifier.Modify(expression);
 
-            return new R<T>(modifier.ComputeFunc, modifier.ReactiveInstances);
+            return new R<T>(modifier.ComputeFunc, modifier.Children);
         }
 
         public void Set(T value) {
@@ -92,7 +93,7 @@ namespace ReactiveObjects
             private readonly Dictionary<ParameterExpression, object> parameters;
 
             public Delegate ComputeFunc { get; private set; }
-            public List<ReactiveBase> ReactiveInstances { get; private set; }
+            public List<ReactiveBase> Children { get; private set; }
 
             public ConvertModifier() {
                 parameters = new Dictionary<ParameterExpression, object>();
@@ -104,7 +105,7 @@ namespace ReactiveObjects
                 var expressionType = GetFuncType(expressionReturnType);
                 var resultExpression = Expression.Lambda(expressionType, visitedExpression.Body, parameters.Keys);
                 ComputeFunc = resultExpression.Compile();
-                ReactiveInstances = parameters.Values.Select(x=>(ReactiveBase)x).ToList();
+                Children = parameters.Values.Select(x=>(ReactiveBase)x).ToList();
 
                 var computeBody = Expression.Lambda(Expression.Convert(resultExpression.Body, typeof(T)), resultExpression.Parameters);
                 var inputs = Expression.Parameter(typeof(object[]), "args");
@@ -147,22 +148,34 @@ namespace ReactiveObjects
             private Expression VisitOperand(Expression expression)
             {
                 if (expression.NodeType == ExpressionType.Convert && expression is UnaryExpression) {
-                    var leftExpression = (UnaryExpression)expression;
+                    var unaryExpression = (UnaryExpression)expression;
                     Expression convertedExpression;
 
-                    if (!(leftExpression.Operand is MemberExpression)) {
+                    if (!(unaryExpression.Operand is MemberExpression)) {
                         convertedExpression = Visit(expression);
                     } else {
-                        var operandExpression = (MemberExpression)leftExpression.Operand;
+                        var operandExpression = (MemberExpression)unaryExpression.Operand;
 
                         if (operandExpression.Type.Name != typeof(R<>).Name) {
                             convertedExpression = Visit(expression);
-                        } else {
+                        } else if(operandExpression.Expression is MemberExpression) {
+                            var memberExpression = (MemberExpression)operandExpression.Expression;
+                            var closureExpression = (ConstantExpression)memberExpression.Expression;
+                            Type memberType = operandExpression.Type;
+                            object containerInstance = ((FieldInfo)memberExpression.Member).GetValue(closureExpression.Value);
+                            object capturedVariable = containerInstance.GetValue(operandExpression.Member.Name);
+                            string variableName = $"{memberExpression.Member.Name}{operandExpression.Member.Name}";
+                            Type genericType = memberType.GenericTypeArguments[0];
+                            ParameterExpression paramExpression = Expression.Parameter(genericType, variableName);
+                            parameters[paramExpression] = capturedVariable;
+                            convertedExpression = paramExpression;
+                        }
+                        else {
                             var closureExpression = (ConstantExpression)operandExpression.Expression;
-                            var memberType = ((FieldInfo)operandExpression.Member).FieldType;
-                            var capturedVariable = ((FieldInfo)operandExpression.Member).GetValue(closureExpression.Value);
+                            Type memberType = ((FieldInfo)operandExpression.Member).FieldType;
+                            object capturedVariable = ((FieldInfo)operandExpression.Member).GetValue(closureExpression.Value);
                             string variableName = operandExpression.Member.Name;
-                            var genericType = memberType.GenericTypeArguments[0];
+                            Type genericType = memberType.GenericTypeArguments[0];
                             ParameterExpression paramExpression = Expression.Parameter(genericType, variableName);
                             parameters[paramExpression] = capturedVariable;
                             convertedExpression = paramExpression;

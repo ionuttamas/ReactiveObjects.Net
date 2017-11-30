@@ -68,7 +68,7 @@ namespace ReactiveObjects.UnitTests {
         }
 
         [Test]
-        public void ReactiveObject_ForReactivePropertiesOperations_ComputesCorrectly() {
+        public void ReactiveObject_ForNestedReactivePropertiesOnly_ComputesCorrectly() {
             var person = new Person
             {
                 Id = 0,
@@ -77,30 +77,130 @@ namespace ReactiveObjects.UnitTests {
                 Type = "VIP"
             };
 
-            var invoice = new Invoice
+            var invoice = new Insurance
             {
-                Amount = R.Of(() => person.Type=="VIP" ? person.Age * 30 : person.Age*10)
+                Cost = R.Of(() => person.Type=="VIP" ? person.Age * 10 : person.Age * 30)
             };
 
-            Assert.AreEqual(person.Age * 30, invoice.Amount);
+            Assert.AreEqual(person.Age * 10, invoice.Cost);
 
             person.Age.Set(35);
-            Assert.AreEqual(person.Age * 30, invoice.Amount);
+            Assert.AreEqual(person.Age * 10, invoice.Cost);
 
             person.Type.Set("Regular");
-            Assert.AreEqual(person.Age * 10, invoice.Amount);
+            Assert.AreEqual(person.Age * 30, invoice.Cost);
         }
 
-        internal class Person
+        [Test]
+        public void ReactiveObject_ForNestedReactivePropertiesAndRegularProperties_ComputesCorrectly() {
+            var person = new Person {
+                Id = 0,
+                Risk = 10,
+                Age = 30,
+                Name = "John Doe",
+                Type = "VIP"
+            };
+
+            var invoice = new Insurance {
+                Cost = R.Of(() => person.Type == "VIP" ? person.Age * 10 : person.Age * 30 + person.Risk)
+            };
+
+            Assert.AreEqual(person.Age * 10, invoice.Cost);
+
+            person.Age.Set(35);
+            Assert.AreEqual(person.Age * 10, invoice.Cost);
+
+            person.Type.Set("Regular");
+            Assert.AreEqual(person.Age * 30 + person.Risk, invoice.Cost);
+        }
+
+        [Test]
+        public void ReactiveObject_ForMultipleLevelNestedReactiveProperties_ComputesCorrectly() {
+            var person = new Person {
+                Id = 0,
+                Age = 30,
+                Name = "John Doe",
+                Type = "VIP"
+            };
+
+            var personWrapper = new PersonWrapper
+            {
+                Person =  person,
+                AdditionalRisk = 10
+            };
+
+            var invoice = new Insurance {
+                Cost = R.Of(() => personWrapper.Person.Type == "VIP" ? personWrapper.Person.Age * 10 : personWrapper.Person.Age * 30 + personWrapper.AdditionalRisk)
+            };
+
+            Assert.AreEqual(person.Age * 10, invoice.Cost);
+
+            person.Age.Set(35);
+            Assert.AreEqual(person.Age * 10, invoice.Cost);
+
+            person.Type.Set("Regular");
+            Assert.AreEqual(personWrapper.Person.Age * 30 + personWrapper.AdditionalRisk, invoice.Cost);
+        }
+
+
+        [Test]
+        public void ReactiveObject_ForGroups_ComputesCorrectly() {
+            var person1 = new Person {
+                Id = 0,
+                Age = 30,
+                Name = "John Doe",
+                Type = "VIP"
+            };
+
+            var person2 = new Person {
+                Id = 0,
+                Age = 30,
+                Name = "Joe Smith",
+                Type = "Regular"
+            };
+
+            var group = new InsuranceGroup
+            {
+                CountryRisk = 10,
+                Persons = new List<Person> {person1, person2}
+            };
+
+            var invoice = new Insurance {
+                Cost = R.Of(() => group.CountryRisk * group.Persons.Sum(x=>x.Age * 20))
+            };
+
+            Assert.AreEqual(group.CountryRisk * group.Persons.Sum(x => x.Age * 20), invoice.Cost);
+
+            person1.Age.Set(35);
+            Assert.AreEqual(group.CountryRisk * group.Persons.Sum(x => x.Age * 20), invoice.Cost);
+
+            person2.Age.Set(60);
+            Assert.AreEqual(group.CountryRisk * group.Persons.Sum(x => x.Age * 20), invoice.Cost);
+        }
+
+        private class InsuranceGroup
+        {
+            public int CountryRisk { get; set; }
+            public List<Person> Persons { get; set; }
+        }
+
+        private class PersonWrapper
+        {
+            public Person Person { get; set; }
+            public int AdditionalRisk { get; set; }
+        }
+
+        private class Person
         {
             public int Id { get; set; }
+            public int Risk { get; set; }
             public R<int> Age { get; set; }
             public R<string> Name { get; set; }
             public R<string> Type { get; set; }
         }
 
-        internal class Invoice {
-            public R<int> Amount { get; set; }
+        private class Insurance {
+            public R<int> Cost { get; set; }
         }
     }
 }
