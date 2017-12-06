@@ -1,6 +1,6 @@
 using System;
 
-namespace ReactiveObjects
+namespace ReactiveObjects.Reactive
 {
     public class ReactiveBase
     {

@@ -1,7 +1,8 @@
 using System.Linq;
 using System.Timers;
+using ReactiveObjects.Reactive;
 
-namespace ReactiveObjects
+namespace ReactiveObjects.UpdateStrategy
 {
     public class ThrottledUpdateStrategy<T> : IUpdateStrategy<T> {
         private readonly Timer timer;

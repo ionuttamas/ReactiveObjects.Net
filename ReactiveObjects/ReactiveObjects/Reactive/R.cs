@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using ReactiveObjects.Extensions;
+using ReactiveObjects.UpdateStrategy;
 
-namespace ReactiveObjects
+namespace ReactiveObjects.Reactive
 {
     public class R<T> : ReactiveBase {
         private readonly Func<object[], T> computeFunc;

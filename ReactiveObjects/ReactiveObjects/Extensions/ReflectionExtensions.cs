@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace ReactiveObjects
+namespace ReactiveObjects.Extensions
 {
     public static class ReflectionExtensions {
         public static object GetValue(this object value, string propertyName) {

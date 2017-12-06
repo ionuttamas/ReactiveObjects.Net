@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace ReactiveObjects
+namespace ReactiveObjects.Extensions
 {
     public static class StringExtensions
     {

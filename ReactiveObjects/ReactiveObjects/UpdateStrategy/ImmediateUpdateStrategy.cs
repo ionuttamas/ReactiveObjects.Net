@@ -1,6 +1,7 @@
 using System.Linq;
+using ReactiveObjects.Reactive;
 
-namespace ReactiveObjects
+namespace ReactiveObjects.UpdateStrategy
 {
     public class ImmediateUpdateStrategy<T> : IUpdateStrategy<T>
     {
