@@ -129,8 +129,12 @@ namespace ReactiveObjects.UnitTests {
                 AdditionalRisk = 10
             };
 
+            var personWrapperWrapper = new PersonWrapperWrapper {
+                PersonWrapper = personWrapper
+            };
+
             var invoice = new Insurance {
-                Cost = R.Of(() => personWrapper.Person.Type == "VIP" ? personWrapper.Person.Age * 10 : personWrapper.Person.Age * 30 + personWrapper.AdditionalRisk)
+                Cost = R.Of(() => personWrapperWrapper.PersonWrapper.Person.Type == "VIP" ? personWrapper.Person.Age * 10 : personWrapper.Person.Age * 30 + personWrapper.AdditionalRisk)
             };
 
             Assert.AreEqual(person.Age * 10, invoice.Cost);
@@ -142,7 +146,7 @@ namespace ReactiveObjects.UnitTests {
             Assert.AreEqual(personWrapper.Person.Age * 30 + personWrapper.AdditionalRisk, invoice.Cost);
         }
 
-
+        [Ignore]
         [Test]
         public void ReactiveObject_ForGroups_ComputesCorrectly() {
             var person1 = new Person {
@@ -166,7 +170,7 @@ namespace ReactiveObjects.UnitTests {
             };
 
             var invoice = new Insurance {
-                Cost = R.Of(() => group.CountryRisk * group.Persons.Sum(x=>x.Age * 20))
+                Cost = R.Of(() => group.CountryRisk * group.Persons.Sum(x => x.Age * 20))
             };
 
             Assert.AreEqual(group.CountryRisk * group.Persons.Sum(x => x.Age * 20), invoice.Cost);
@@ -182,6 +186,11 @@ namespace ReactiveObjects.UnitTests {
         {
             public int CountryRisk { get; set; }
             public List<Person> Persons { get; set; }
+        }
+
+        private class PersonWrapperWrapper
+        {
+            public PersonWrapper PersonWrapper { get; set; }
         }
 
         private class PersonWrapper

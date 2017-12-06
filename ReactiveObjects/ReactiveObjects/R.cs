@@ -137,8 +137,8 @@ namespace ReactiveObjects
                     string variableName = memberExpression.Member.Name;
                     ParameterExpression paramExpression = Expression.Parameter(memberType.GenericTypeArguments[0], variableName);
                     parameters[paramExpression] = capturedVariable;
+                    MemberExpression result = Expression.MakeMemberAccess(paramExpression, node.Member);
 
-                    var result = Expression.MakeMemberAccess(paramExpression, node.Member);
                     return result;
                 }
 
@@ -158,27 +158,11 @@ namespace ReactiveObjects
 
                         if (operandExpression.Type.Name != typeof(R<>).Name) {
                             convertedExpression = Visit(expression);
-                        } else if(operandExpression.Expression is MemberExpression) {
-                            var memberExpression = (MemberExpression)operandExpression.Expression;
-                            var closureExpression = (ConstantExpression)memberExpression.Expression;
-                            Type memberType = operandExpression.Type;
-                            object containerInstance = ((FieldInfo)memberExpression.Member).GetValue(closureExpression.Value);
-                            object capturedVariable = containerInstance.GetValue(operandExpression.Member.Name);
-                            string variableName = $"{memberExpression.Member.Name}{operandExpression.Member.Name}";
-                            Type genericType = memberType.GenericTypeArguments[0];
-                            ParameterExpression paramExpression = Expression.Parameter(genericType, variableName);
-                            parameters[paramExpression] = capturedVariable;
-                            convertedExpression = paramExpression;
-                        }
-                        else {
-                            var closureExpression = (ConstantExpression)operandExpression.Expression;
-                            Type memberType = ((FieldInfo)operandExpression.Member).FieldType;
-                            object capturedVariable = ((FieldInfo)operandExpression.Member).GetValue(closureExpression.Value);
-                            string variableName = operandExpression.Member.Name;
-                            Type genericType = memberType.GenericTypeArguments[0];
-                            ParameterExpression paramExpression = Expression.Parameter(genericType, variableName);
-                            parameters[paramExpression] = capturedVariable;
-                            convertedExpression = paramExpression;
+                        } else if(operandExpression.Expression is MemberExpression)
+                        {
+                            convertedExpression = ProcessMemberExpression(operandExpression);
+                        } else {
+                            convertedExpression = ProcessConstantExpression(operandExpression);
                         }
                     }
 
@@ -191,6 +175,46 @@ namespace ReactiveObjects
                 }
 
                 return Visit(expression);
+            }
+
+            private ParameterExpression ProcessMemberExpression(MemberExpression operandExpression)
+            {
+                Type genericType = operandExpression.Type.GenericTypeArguments[0];
+                Stack<string> memberStack = new Stack<string>();
+                MemberExpression memberExpression = operandExpression;
+                memberStack.Push(operandExpression.Member.Name);
+
+                do
+                {
+                    memberExpression = (MemberExpression) memberExpression.Expression;
+                    memberStack.Push(memberExpression.Member.Name);
+                } while (memberExpression.Expression is MemberExpression);
+
+                string variableName = memberStack.Join(string.Empty);
+                var closureExpression = (ConstantExpression)memberExpression.Expression;
+                object capturedVariable = ((FieldInfo)memberExpression.Member).GetValue(closureExpression.Value);
+
+                foreach (string memberName in memberStack.Skip(1))
+                {
+                    capturedVariable = capturedVariable.GetValue(memberName);
+                }
+
+                ParameterExpression paramExpression = Expression.Parameter(genericType, variableName);
+                parameters[paramExpression] = capturedVariable;
+
+                return paramExpression;
+            }
+
+            private ParameterExpression ProcessConstantExpression(MemberExpression operandExpression) {
+                var closureExpression = (ConstantExpression)operandExpression.Expression;
+                Type memberType = ((FieldInfo)operandExpression.Member).FieldType;
+                object capturedVariable = ((FieldInfo)operandExpression.Member).GetValue(closureExpression.Value);
+                string variableName = operandExpression.Member.Name;
+                Type genericType = memberType.GenericTypeArguments[0];
+                ParameterExpression paramExpression = Expression.Parameter(genericType, variableName);
+                parameters[paramExpression] = capturedVariable;
+
+                return paramExpression;
             }
 
             private Type GetFuncType(Type returnType) {
