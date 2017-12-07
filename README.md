@@ -1,7 +1,7 @@
 # ReactiveObjects
-Library for easy handling changes to objects 
+Library for taming the reactivity of the objects in your system 
 
-# Arithmetic reactivity
+### Arithmetic reactivity
 ```csharp
 R<int> leftOperand = 2;
 R<int> rightOperand = 3;
@@ -13,7 +13,7 @@ leftOperand.Set(4);
 Assert.AreEqual(12, result.Value);
 ```
 
-# Arithmetic and string based reactivity
+### Arithmetic and string reactivity
 ```csharp
 R<string> stringOperand = "abc";
 R<int> intOperand = 2;
@@ -25,7 +25,7 @@ leftOperand.Set("abcde");
 Assert.AreEqual(12, result.Value);
 ```
 
-# Properties based reactivity
+### Properties reactivity
 ```csharp
 public class Person
 { 
@@ -59,7 +59,7 @@ person.Type.Set("Regular");
 Assert.AreEqual(700, invoice.Cost);
 ```
 
-# Collections based reactivity
+### Collections reactivity
 ```csharp
 R<List<int>> list = new List<int> {1, 2};
 R<Stack<int>> stack = new Stack<int>();
