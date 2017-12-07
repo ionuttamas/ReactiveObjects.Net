@@ -40,6 +40,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Extensions\ReactiveExtensions.cs" />
     <Compile Include="UpdateStrategy\ImmediateUpdateStrategy.cs" />
     <Compile Include="UpdateStrategy\IUpdateStrategy.cs" />
     <Compile Include="Reactive\R.cs" />

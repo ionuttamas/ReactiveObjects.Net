@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using NUnit.Framework;
+using ReactiveObjects.Extensions;
 using ReactiveObjects.Reactive;
 
 namespace ReactiveObjects.UnitTests {
@@ -145,6 +146,29 @@ namespace ReactiveObjects.UnitTests {
 
             person.Type.Set("Regular");
             Assert.AreEqual(personWrapper.Person.Age * 30 + personWrapper.AdditionalRisk, invoice.Cost);
+        }
+
+        [Test]
+        public void ReactiveObject_ForCollectionReactiveOperations_ComputesCorrectly()
+        {
+            R<List<int>> list = new List<int> {1, 2};
+            R<Stack<int>> stack = new Stack<int>();
+            R<int> result = R.Of(() => 2 * list.Value.Count * stack.Value.Count + list.Value.First());
+
+            Assert.AreEqual(2 * list.Value.Count * stack.Value.Count + list.Value.First(), result.Value);
+
+            list.Add(3);
+            stack.Push(3);
+            Assert.AreEqual(2 * list.Value.Count * stack.Value.Count + list.Value.First(), result.Value);
+
+            list.Remove(1);
+            list.Remove(2);
+            stack.Push(2);
+            Assert.AreEqual(2 * list.Value.Count * stack.Value.Count + list.Value.First(), result.Value);
+
+            list.Add(1);
+            stack.Pop();
+            Assert.AreEqual(2 * list.Value.Count * stack.Value.Count + list.Value.First(), result.Value);
         }
 
         [Ignore]

@@ -58,3 +58,25 @@ Assert.AreEqual(350, invoice.Cost);
 person.Type.Set("Regular");
 Assert.AreEqual(700, invoice.Cost);
 ```
+
+# Collections based reactivity
+```csharp
+R<List<int>> list = new List<int> {1, 2};
+R<Stack<int>> stack = new Stack<int>();
+R<int> result = R.Of(() => stack.Value.Count + list.Value.First());
+
+Assert.AreEqual(stack.Value.Count + list.Value.First(), result.Value);
+
+list.Add(3);
+stack.Push(3);
+Assert.AreEqual(stack.Value.Count + list.Value.First(), result.Value);
+
+list.Remove(1);
+list.Remove(2);
+stack.Push(2);
+Assert.AreEqual(stack.Value.Count + list.Value.First(), result.Value);
+
+list.Add(1);
+stack.Pop();
+Assert.AreEqual(stack.Value.Count + list.Value.First(), result.Value);
+```
